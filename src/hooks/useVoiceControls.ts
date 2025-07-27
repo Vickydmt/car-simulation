@@ -42,11 +42,39 @@ export function useVoiceControls() {
       return;
     }
 
+    // Detect browser for specific handling
+    const isChrome = navigator.userAgent.includes('Chrome') && !navigator.userAgent.includes('Edge');
+    const isFirefox = navigator.userAgent.includes('Firefox');
+    const isSafari = navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome');
+    
+    console.log("Browser detected:", { isChrome, isFirefox, isSafari });
+
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognitionRef.current = new SpeechRecognition();
     recognitionRef.current.continuous = true;
     recognitionRef.current.interimResults = true;
     recognitionRef.current.lang = "en-US";
+    
+    // Add additional settings for better laptop compatibility
+    recognitionRef.current.maxAlternatives = 1;
+    
+    // Set a longer timeout for laptops that might have slower processing
+    if (recognitionRef.current.grammars) {
+      recognitionRef.current.grammars = null; // Disable grammars for better compatibility
+    }
+    
+    // Browser-specific settings
+    if (isChrome) {
+      // Chrome works well with default settings
+      console.log("Using Chrome-optimized settings");
+    } else if (isFirefox) {
+      // Firefox might need different handling
+      console.log("Using Firefox-optimized settings");
+      recognitionRef.current.continuous = false; // Firefox sometimes has issues with continuous
+    } else if (isSafari) {
+      // Safari might need different handling
+      console.log("Using Safari-optimized settings");
+    }
 
     recognitionRef.current.onstart = () => {
       setIsListening(true);
@@ -80,12 +108,58 @@ export function useVoiceControls() {
 
     recognitionRef.current.onerror = (event: any) => {
       console.error("Speech recognition error:", event.error);
-      if (event.error === "not-allowed") {
-        setTranscript("❌ Microphone access denied. Please allow microphone access.");
-        setIsListening(false);
-        shouldBeListening.current = false;
-      } else {
-        setTranscript(`Error: ${event.error}`);
+      
+      // Handle different error types
+      switch (event.error) {
+        case "not-allowed":
+          setTranscript("❌ Microphone access denied. Please allow microphone access in your browser settings.");
+          setIsListening(false);
+          shouldBeListening.current = false;
+          break;
+        case "no-speech":
+          // This is normal - just restart listening
+          console.log("No speech detected, restarting...");
+          setTranscript("🎧 Listening for car commands...");
+          // Restart after a short delay
+          setTimeout(() => {
+            if (shouldBeListening.current && recognitionRef.current) {
+              try {
+                recognitionRef.current.start();
+              } catch (e) {
+                console.error("Failed to restart after no-speech:", e);
+              }
+            }
+          }, 100);
+          break;
+        case "audio-capture":
+          setTranscript("❌ No microphone found. Please connect a microphone and try again.");
+          setIsListening(false);
+          shouldBeListening.current = false;
+          break;
+        case "network":
+          setTranscript("❌ Network error. Please check your internet connection.");
+          setIsListening(false);
+          shouldBeListening.current = false;
+          break;
+        case "aborted":
+          // This is normal when stopping
+          console.log("Speech recognition aborted");
+          break;
+        default:
+          setTranscript(`❌ Speech recognition error: ${event.error}. Please try again.`);
+          // Try to restart for other errors
+          setTimeout(() => {
+            if (shouldBeListening.current && recognitionRef.current) {
+              try {
+                recognitionRef.current.start();
+              } catch (e) {
+                console.error("Failed to restart after error:", e);
+                setIsListening(false);
+                shouldBeListening.current = false;
+              }
+            }
+          }, 2000);
+          break;
       }
     };
 
@@ -96,6 +170,7 @@ export function useVoiceControls() {
       // Only restart if we should still be listening
       if (shouldBeListening.current) {
         console.log("Restarting speech recognition...");
+        // Add longer delay for laptops that might need more time
         setTimeout(() => {
           try {
             if (recognitionRef.current && shouldBeListening.current) {
@@ -103,8 +178,21 @@ export function useVoiceControls() {
             }
           } catch (e) {
             console.error("Failed to restart speech recognition:", e);
+            // If restart fails, try one more time after a longer delay
+            setTimeout(() => {
+              try {
+                if (recognitionRef.current && shouldBeListening.current) {
+                  recognitionRef.current.start();
+                }
+              } catch (retryError) {
+                console.error("Failed to restart speech recognition on retry:", retryError);
+                setTranscript("❌ Voice recognition stopped. Click the button to restart.");
+                setIsListening(false);
+                shouldBeListening.current = false;
+              }
+            }, 3000);
           }
-        }, 1000);
+        }, 1500); // Increased delay for laptop compatibility
       }
     };
 
@@ -199,6 +287,7 @@ export function useVoiceControls() {
 
     try {
       if (recognitionRef.current && !isListening) {
+        // Reset state
         setVoiceCommands({
           forward: false,
           backward: false,
@@ -210,12 +299,28 @@ export function useVoiceControls() {
         });
         lastCommandTime.current = 0;
         shouldBeListening.current = true;
-        recognitionRef.current.start();
-        setIsListening(true);
+        
+        // Add a small delay to ensure browser is ready
+        setTimeout(() => {
+          try {
+            if (recognitionRef.current && shouldBeListening.current) {
+              recognitionRef.current.start();
+              setIsListening(true);
+              setTranscript("🎧 Starting voice recognition...");
+            }
+          } catch (startError) {
+            console.error("Error starting speech recognition:", startError);
+            setTranscript("❌ Failed to start voice recognition. Please try again.");
+            setIsListening(false);
+            shouldBeListening.current = false;
+          }
+        }, 100);
       }
     } catch (error) {
-      console.error("Error starting speech recognition:", error);
-      setTranscript("Error starting voice recognition");
+      console.error("Error in startListening:", error);
+      setTranscript("❌ Error starting voice recognition. Please refresh the page and try again.");
+      setIsListening(false);
+      shouldBeListening.current = false;
     }
   }, [isListening, isSupported]);
 
