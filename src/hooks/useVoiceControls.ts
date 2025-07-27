@@ -46,34 +46,40 @@ export function useVoiceControls() {
     const isChrome = navigator.userAgent.includes('Chrome') && !navigator.userAgent.includes('Edge');
     const isFirefox = navigator.userAgent.includes('Firefox');
     const isSafari = navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome');
+    const isEdge = navigator.userAgent.includes('Edge');
     
-    console.log("Browser detected:", { isChrome, isFirefox, isSafari });
+    console.log("Browser detected:", { isChrome, isFirefox, isSafari, isEdge });
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognitionRef.current = new SpeechRecognition();
-    recognitionRef.current.continuous = true;
-    recognitionRef.current.interimResults = true;
-    recognitionRef.current.lang = "en-US";
     
-    // Add additional settings for better laptop compatibility
-    recognitionRef.current.maxAlternatives = 1;
-    
-    // Set a longer timeout for laptops that might have slower processing
-    if (recognitionRef.current.grammars) {
-      recognitionRef.current.grammars = null; // Disable grammars for better compatibility
-    }
-    
-    // Browser-specific settings
-    if (isChrome) {
-      // Chrome works well with default settings
-      console.log("Using Chrome-optimized settings");
-    } else if (isFirefox) {
-      // Firefox might need different handling
-      console.log("Using Firefox-optimized settings");
-      recognitionRef.current.continuous = false; // Firefox sometimes has issues with continuous
-    } else if (isSafari) {
-      // Safari might need different handling
-      console.log("Using Safari-optimized settings");
+    try {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+      recognitionRef.current.lang = "en-US";
+      
+      // Add additional settings for better laptop compatibility
+      recognitionRef.current.maxAlternatives = 1;
+      
+      // Browser-specific settings
+      if (isChrome) {
+        // Chrome works well with default settings
+        console.log("Using Chrome-optimized settings");
+      } else if (isFirefox) {
+        // Firefox might need different handling
+        console.log("Using Firefox-optimized settings");
+        recognitionRef.current.continuous = false; // Firefox sometimes has issues with continuous
+      } else if (isSafari) {
+        // Safari might need different handling
+        console.log("Using Safari-optimized settings");
+      } else if (isEdge) {
+        // Edge works well with default settings
+        console.log("Using Edge-optimized settings");
+      }
+    } catch (error) {
+      console.error("Error initializing speech recognition:", error);
+      setIsSupported(false);
+      return;
     }
 
     recognitionRef.current.onstart = () => {
