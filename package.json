@@ -1,0 +1,32 @@
+{
+  "name": "car-ride",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@react-three/cannon": "^6.6.0",
+    "@react-three/drei": "^9.105.3",
+    "@react-three/fiber": "^8.16.1",
+    "@types/dat.gui": "^0.7.13",
+    "cannon-es": "^0.20.0",
+    "dat.gui": "^0.7.9",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "three": "^0.165.0",
+    "three-stdlib": "^2.29.6"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
+    "@types/three": "^0.163.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "eslint": "^8.57.0",
+    "typescript": "^5.2.2",
+    "vite": "^5.2.0"
+  }
+}
